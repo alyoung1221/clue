@@ -1,6 +1,9 @@
 package gdx.clue.astar;
 
 import com.google.common.collect.Ordering;
+
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -8,8 +11,7 @@ import java.util.Map;
  *
  * @author Gene McCulley
  */
-class Utilities {
-
+public class Utilities {
     private Utilities() {
         // Inhibit construction as this class only provides static functions.
     }
@@ -32,5 +34,12 @@ class Utilities {
 
         };
     }
+    
+    @SafeVarargs
+	public static <T> List<T> joinLists(List<T>... lists) {
+        return Arrays.stream(lists)
+        	.flatMap(List::stream)
+        	.toList(); 
+	}
 
 }

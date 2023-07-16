@@ -8,6 +8,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.StringTokenizer;
 
+import com.codepoetics.protonpack.StreamUtils;
+
 public class ClueMap {
 
     private final Location[][] nodes;
@@ -65,18 +67,24 @@ public class ClueMap {
         while (tokens.hasMoreTokens()) {
             line = tokens.nextToken();
             char[] array = line.toCharArray();
+
             for (int x = 0; x < array.length; x++) {
                 Location t = nodes[x][y];
+
                 if (array[x] == 'x') {
                     t.setBlocked(true);
                 }
+
                 try {
                     int room_id = Integer.parseInt(String.valueOf(array[x]));
+                    
                     t.setIsRoom(true);
                     t.setRoomId(room_id);
-                } catch (Exception e) {
+                } 
+                catch (Exception e) {
                 }
             }
+            
             y++;
         }
 
@@ -160,38 +168,54 @@ public class ClueMap {
     }
 
     public List<Location> highlightReachablePaths(Location starting_location, PathFinder<Location> pathfinder, int dice_roll) {
-
         Collection<Location> locs = getLocations();
 
         List<Location> choices = new ArrayList<>();
-
         List<Location> doors = getAllDoorLocationsForRoom(starting_location.getRoomId());
 
         if (doors == null) {//not in a room
-            for (Location loc : locs) {
+            for (Location loc: locs) {
                 List<Location> path2 = pathfinder.findPath(locs, starting_location, Collections.singleton(loc));
-                if (path2 != null && path2.size() == dice_roll + 1) {
-                    Location l = path2.get(path2.size() - 1);
-                    l.setHighlighted(true);
-                    choices.add(l);
+
+                if (path2 != null) {
+                	if (path2.size() == dice_roll + 1) {
+                		StreamUtils.zipWithIndex(path2.stream()).forEach((p) -> {
+                			long i = p.getIndex();
+                			Location l = p.getValue();
+
+	                        if (i == path2.size() - 1) {
+	                            l.setHighlighted(true);
+	                            choices.add(l);
+	                        }
+	                        else {
+	                        	l.setIsWithinRoll(true);
+	                        }
+                    	});
+                	}
                 }
+
                 if (path2 != null && loc.isRoom() && path2.size() < dice_roll + 1) {
                     Location l = path2.get(path2.size() - 1);
                     l.setHighlighted(true);
                     choices.add(l);
                 }
             }
-        } else { //in a room
+        } 
+        else { //in a room
             for (Location door : doors) {
                 for (Location loc : locs) {
                     List<Location> path2 = pathfinder.findPath(locs, door, Collections.singleton(loc));
+
                     if (path2 != null && path2.size() == dice_roll + 1) {
                         Location l = path2.get(path2.size() - 1);
+
                         l.setHighlighted(true);
                         choices.add(l);
                     }
+
                     if (path2 != null && loc.isRoom() && path2.size() < dice_roll + 1) {
                         Location l = path2.get(path2.size() - 1);
+                        
                         l.setHighlighted(true);
                         choices.add(l);
                     }
@@ -233,5 +257,4 @@ public class ClueMap {
 
         }
     }
-
 }

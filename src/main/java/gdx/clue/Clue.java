@@ -1,63 +1,77 @@
 package gdx.clue;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
-import static gdx.clue.Card.*;
+import java.util.Map;
+
+import static gdx.clue.CardEnum.*;
 import gdx.clue.ClueMain.Suspect;
+
 import java.util.Random;
+import java.util.Map.Entry;
+import java.util.stream.Collectors;
+
+import com.codepoetics.protonpack.StreamUtils;
 
 public class Clue {
-
-    private final List<Player> players = new ArrayList<>(6);
-    private final List<Card> shuffled = new ArrayList<>(TOTAL);
-    private final List<Card> victimSet = new ArrayList<>(3);
+    private final List<Player> players = new ArrayList<Player>(6);
+    private int cardsPerPlayer;
+    private List<Card> shuffled = new ArrayList<Card>(TOTAL);
+    private final List<Card> victimSet = new ArrayList<Card>(3);
+ 
+    private Map<CardType, List<Card>> deck = new HashMap<CardType, List<Card>>();
 
     public void createDeck() {
-
-        ArrayList<Card> deck = new ArrayList<>(TOTAL);
-
-        //create deck
-        for (int i = 0; i < NUM_ROOMS; i++) {
-            deck.add(new Card(TYPE_ROOM, i));
-        }
-        for (int i = 0; i < NUM_SUSPECTS; i++) {
-            deck.add(new Card(TYPE_SUSPECT, i));
-        }
-        for (int i = 0; i < NUM_WEAPONS; i++) {
-            deck.add(new Card(TYPE_WEAPON, i));
-        }
-
-        // shuffle it
+    	List<Card> cards = Arrays.asList(Card.values());
+    	
+    	List<Card> rooms = cards.stream().filter(c -> c.type() == CardType.ROOM).toList();
+    	List<Card> suspects = cards.stream().filter(c -> c.type() == CardType.SUSPECT).toList();
+    	List<Card> weapons = cards.stream().filter(c -> c.type() == CardType.WEAPON).toList();
+    	
+    	deck.put(CardType.SUSPECT, suspects);
+        deck.put(CardType.WEAPON, weapons);    
+        deck.put(CardType.ROOM, rooms);
+        
         Random rand = new Random();
-        for (int i = 0; i < TOTAL; i++) {
-            int r = rand.nextInt(deck.size());
-            Card c = deck.remove(r);
-            shuffled.add(c);
-        }
-
-        //pull the victim set
+        
+        // pull the victim set
+        int s = rand.nextInt(NUM_SUSPECTS);
         int w = rand.nextInt(NUM_WEAPONS);
         int r = rand.nextInt(NUM_ROOMS);
-        int s = rand.nextInt(NUM_SUSPECTS);
+        
+        Card suspect = suspects.get(s);
+        Card weapon = weapons.get(w);
+        Card room = rooms.get(r);
 
-        Card weapon = new Card(TYPE_WEAPON, w);
-        Card suspect = new Card(TYPE_SUSPECT, s);
-        Card room = new Card(TYPE_ROOM, r);
-
-        shuffled.remove(weapon);
-        shuffled.remove(suspect);
-        shuffled.remove(room);
-
-        victimSet.add(weapon);
         victimSet.add(suspect);
+        victimSet.add(weapon);        
         victimSet.add(room);
-
+        
+        shuffled = this.deck
+            .entrySet()
+            .stream()
+            .map(Entry::getValue)
+            .flatMap(List::stream)
+            .filter((c) -> !victimSet.contains(c))
+            .collect(Collectors.toList());
+        
+        // shuffle it
+        Collections.shuffle(shuffled);
     }
 
-    public Player addPlayer(Card p, String name, Suspect suspect, boolean computer) {
-        Player player = new Player(p, name, suspect, computer);
+    public Player addPlayer(Suspect suspect, Card card, boolean computer) {
+        Player player = new Player(card, suspect.title(), suspect.abbr(), suspect, computer);
+        
         players.add(player);
+        
         return player;
+    }
+    
+    public boolean removePlayer(Player player) {
+    	return this.players.remove(player);
     }
 
     public int getCurrentPlayerCount() {
@@ -65,7 +79,13 @@ public class Clue {
     }
 
     public boolean containsSuspect(Card card) {
-        return players.contains(card);
+    	List<Card> cards = players
+    		.stream()
+    		.map(p -> p.getHand())
+    		.flatMap(List::stream)
+            .toList();
+    	
+    	return cards.contains(card);
     }
 
     public List<Player> getPlayers() {
@@ -73,52 +93,107 @@ public class Clue {
     }
 
     public Player getPlayer(int id) {
-        Player player = null;
-        for (Player p : players) {
-            if (p.getSuspect().id() == id) {
-                player = p;
-            }
-        }
+        Player player = players
+            .stream()
+            .filter(p -> p.getSuspect().id() == id)
+            .findFirst()
+            .get();
+
         return player;
     }
 
     public Player getPlayer(String name) {
-        Player player = null;
-        for (Player p : players) {
-            if (p.getPlayerName().equals(name)) {
-                player = p;
-            }
-        }
+        Player player = players
+        	.stream()
+        	.filter(p -> p.getPlayerName().equals(name))
+        	.findFirst()
+        	.get();
+
         return player;
     }
 
-    public void dealShuffledDeck() {
-        //deal the cards
-        int player_index = 0;
+    /**
+	 * @return the cardsPerPlayer
+	 */
+	public int getCardsPerPlayer() {
+		return cardsPerPlayer;
+	}
+
+	/**
+	 * @param cardsPerPlayer the cardsPerPlayer to set
+	 */
+	public void setCardsPerPlayer(int cardsPerPlayer) {
+		this.cardsPerPlayer = cardsPerPlayer;
+	}
+
+	/**
+	 * @return the deck
+	 */
+	public Map<CardType, List<Card>> getDeck() {
+		return this.deck;
+	}
+
+	public List<Card> dealShuffledDeck() {
+        // deal the cards
+		cardsPerPlayer = shuffled.size() / players.size();
+
+        List<Card> dealt = new ArrayList<Card>();
+
+		StreamUtils.zipWithIndex(players.stream()).forEachOrdered(player -> {
+			Long i = player.getIndex();
+			Player p = player.getValue();
+
+			Integer start = i.intValue() * cardsPerPlayer;
+			Integer end = (i.intValue() + 1) * cardsPerPlayer;
+
+			List<Card> hand = shuffled.subList(start, end);
+
+			p.setHand(hand);
+            dealt.addAll(hand);
+		});
+
+        List<Card> remaining = shuffled
+        	.stream()
+        	.filter((c) -> !dealt.contains(c))
+        	.toList();
+
+        return remaining;
+        
+		/*int player_index = 0;
+        
         for (int i = 0; i < shuffled.size(); i++) {
             Card card = shuffled.get(i);
+            
             if (player_index == players.size()) {
                 player_index = 0;
             }
+            
             Player player = players.get(player_index);
+            
             player.addCard(card);
             player_index++;
-        }
+        }*/
     }
 
     public String getAdjacentPlayerName(String name) {
         String adjPlayerName = null;
+        
         for (int i = 0; i < players.size(); i++) {
             Player p = players.get(i);
+            
             if (p.getPlayerName().equals(name)) {
                 int next = i + 1;
+                
                 if (next == players.size()) {
                     next = 0;
                 }
+                
                 adjPlayerName = players.get(next).getPlayerName();
+                
                 break;
             }
         }
+        
         return adjPlayerName;
     }
 
@@ -128,28 +203,25 @@ public class Clue {
 
     public boolean matchesVictimSet(List<Card> accusation) {
         Card weapon = null, suspect = null, room = null;
-        for (Card card : accusation) {
-            if (card.getType() == TYPE_WEAPON) {
-                weapon = card;
-            }
-            if (card.getType() == TYPE_ROOM) {
+        
+        for (Card card: accusation) {
+            if (card.type() == CardType.ROOM) {
                 room = card;
             }
-            if (card.getType() == TYPE_SUSPECT) {
+            
+            if (card.type() == CardType.SUSPECT) {
                 suspect = card;
+            }            
+            
+            if (card.type() == CardType.WEAPON) {
+                weapon = card;
             }
         }
+
         return matchesVictimSet(weapon, suspect, room);
     }
 
     public boolean matchesVictimSet(Card weapon, Card suspect, Card room) {
-        return (victimSet.contains(weapon) && victimSet.contains(suspect) && victimSet.contains(room));
-    }
-
-    public boolean matchesVictimSet(int w, int s, int r) {
-        Card suspect = new Card(TYPE_SUSPECT, s);
-        Card weapon = new Card(TYPE_WEAPON, w);
-        Card room = new Card(TYPE_ROOM, r);
         return (victimSet.contains(weapon) && victimSet.contains(suspect) && victimSet.contains(room));
     }
 
@@ -166,5 +238,4 @@ public class Clue {
         }
         return text;
     }
-
 }

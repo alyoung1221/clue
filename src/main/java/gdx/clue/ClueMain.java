@@ -14,7 +14,6 @@ import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 
 public class ClueMain extends Game {
-
     public static final int TILE_DIM = 32;
     public static final int SCREEN_DIM_WIDTH = TILE_DIM * 40;//8 + 24 + 8
     public static final int SCREEN_DIM_HEIGHT = TILE_DIM * 25;
@@ -43,19 +42,16 @@ public class ClueMain extends Game {
     public static Texture TILE_DARK_GREEN;
 
     public static void main(String[] args) {
-
         LwjglApplicationConfiguration cfg = new LwjglApplicationConfiguration();
         cfg.title = "Clue";
         cfg.width = SCREEN_DIM_WIDTH;
         cfg.height = SCREEN_DIM_HEIGHT;
         cfg.addIcon("clue-icon.png", Files.FileType.Classpath);
         new LwjglApplication(new ClueMain(), cfg);
-
     }
 
     @Override
     public void create() {
-
         skin = new Skin(Gdx.files.classpath("assets/skin/uiskin.json"));
 
         ROOMS = new Texture(Gdx.files.classpath("room-sheet.png"));
@@ -68,7 +64,6 @@ public class ClueMain extends Game {
 
         GameScreen sc = new GameScreen();
         setScreen(sc);
-
     }
 
     private static Texture createCircle(Color color, int w, int h, int radius) {
@@ -99,30 +94,29 @@ public class ClueMain extends Game {
     }
 
     public static enum Suspect {
+        SCARLET(0, 0, Color.RED, 0, "Kasandra Scarlet", "KS", 7, 24),
+        WHITE(0, 2, Color.WHITE, 1, "Diane White", "DW", 9, 0),
+        PLUM(1, 2, Color.PURPLE, 2, "Victor Plum", "VP", 23, 18),
+        MUSTARD(0, 1, Color.GOLDENROD, 3, "Jack Mustard", "JM", 0, 17),
+        GREEN(1, 0, Color.FOREST, 4, "Jacob Green", "JG", 13, 0),
+        PEACOCK(1, 1, Color.TEAL, 5, "Eleanor Peacock", "EP", 23, 5);
 
-        SCARLET(0, 0, Color.RED, 0, "Miss Scarlet", 7, 24),
-        WHITE(0, 2, Color.WHITE, 1, "Mrs. White", 9, 0),
-        PLUM(1, 2, Color.PURPLE, 2, "Professor Plum", 23, 18),
-        MUSTARD(0, 1, Color.GOLDENROD, 3, "Colonel Mustard", 0, 17),
-        GREEN(1, 0, Color.FOREST, 4, "Mr. Green", 13, 0),
-        PEACOCK(1, 1, Color.TEAL, 5, "Mrs. Peacock", 23, 5);
-
-        private int ix;
-        private int iy;
         private TextureRegion icon;
         private Texture circle;
         private Color color;
         private int id;
         private String title;
+        private String abbr;
         private int startX;
         private int startY;
 
-        Suspect(int ix, int iy, Color c, int id, String title, int sx, int sy) {
+        Suspect(int ix, int iy, Color c, int id, String title, String abbr, int sx, int sy) {
             this.id = id;
             this.color = c;
-            this.circle = createCircle(c, TILE_DIM, TILE_DIM, 10);
+            this.circle = createCircle(c, TILE_DIM, TILE_DIM, 8);
             this.icon = CHAR_ICONS[ix][iy];
             this.title = title;
+            this.abbr = abbr;
             this.startX = sx;
             this.startY = sy;
         }
@@ -146,7 +140,11 @@ public class ClueMain extends Game {
         public String title() {
             return this.title;
         }
-
+        
+        public String abbr() {
+            return this.abbr;
+        }
+        
         public int startX() {
             return this.startX;
         }
@@ -155,5 +153,4 @@ public class ClueMain extends Game {
             return this.startY;
         }
     }
-
 }

@@ -11,10 +11,10 @@ import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.InputListener;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.actions.Actions;
+
 import static com.badlogic.gdx.scenes.scene2d.actions.Actions.fadeOut;
 import static com.badlogic.gdx.scenes.scene2d.actions.Actions.sequence;
-import com.badlogic.gdx.scenes.scene2d.ui.ButtonGroup;
-import com.badlogic.gdx.scenes.scene2d.ui.CheckBox;
+
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
@@ -22,12 +22,17 @@ import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.ui.Window;
 import com.badlogic.gdx.scenes.scene2d.utils.FocusListener;
 import com.badlogic.gdx.utils.Align;
-import static gdx.clue.Card.*;
+import com.codepoetics.protonpack.Indexed;
+import com.codepoetics.protonpack.StreamUtils;
+
+import static gdx.clue.CardEnum.*;
+
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 
 public class AccusationDialog extends Window {
-
     public static int WIDTH = 300;
     public static int HEIGHT = 400;
 
@@ -36,7 +41,7 @@ public class AccusationDialog extends Window {
     private final GameScreen screen;
 
     private final List<CardCheckBox> checkBoxes = new ArrayList<>();
-    private final List<Card> suggestion = new ArrayList<>();
+    private final List<Card> suggestions = new ArrayList<>();
 
     public AccusationDialog(final GameScreen screen, final Player player) {
         super("Make your accusation ", ClueMain.skin.get("dialog", Window.WindowStyle.class));
@@ -47,7 +52,9 @@ public class AccusationDialog extends Window {
         defaults().pad(5);
 
         Table table = new Table();
+        
         table.align(Align.left | Align.top).pad(10);
+        
         table.columnDefaults(0).expandX().left().uniformX();
         table.columnDefaults(1).expandX().left().uniformX();
         table.columnDefaults(2).expandX().left().uniformX();
@@ -55,69 +62,36 @@ public class AccusationDialog extends Window {
         ScrollPane sp = new ScrollPane(table, ClueMain.skin);
         add(sp).expand().fill().minWidth(200);
         row();
-
-        ButtonGroup buttonGroup1 = new ButtonGroup();
-        buttonGroup1.setMaxCheckCount(1);
-        buttonGroup1.setMinCheckCount(0);
-
-        ButtonGroup buttonGroup2 = new ButtonGroup();
-        buttonGroup2.setMaxCheckCount(1);
-        buttonGroup2.setMinCheckCount(0);
         
-        ButtonGroup buttonGroup3 = new ButtonGroup();
-        buttonGroup2.setMaxCheckCount(1);
-        buttonGroup2.setMinCheckCount(0);
-
-        table.add(new Label("Pick the Suspect", ClueMain.skin, "default-yellow"));
-        table.row();
-        for (int i = 0; i < NUM_SUSPECTS; i++) {
-            Card card = new Card(TYPE_SUSPECT, i);
-            CardCheckBox cb = new CardCheckBox(card, player.isCardInHand(card), player.getNotebook().isCardToggled(card));
-            checkBoxes.add(cb);
-            buttonGroup1.add(cb);
-            table.add(cb);
-            if ((i + 1) % 3 == 0) {
-                table.row();
-            }
-        }
-
-        table.row();
-        table.add(new Label("", ClueMain.skin));
-        table.row();
-
-        table.add(new Label("Pick the Weapon", ClueMain.skin, "default-yellow"));
-        table.row();
-        for (int i = 0; i < NUM_WEAPONS; i++) {
-            Card card = new Card(TYPE_WEAPON, i);
-            CardCheckBox cb = new CardCheckBox(card, player.isCardInHand(card), player.getNotebook().isCardToggled(card));
-            checkBoxes.add(cb);
-            buttonGroup2.add(cb);
-            table.add(cb);
-            if ((i + 1) % 3 == 0) {
-                table.row();
-            }
-        }
-
-        table.row();
-        table.add(new Label("", ClueMain.skin));
-        table.row();
+        Map<CardType, List<Card>> deck = this.screen.getGame().getDeck();
+        List<Player> players = this.screen.getGame().getPlayers();
         
-        table.add(new Label("Pick the Location", ClueMain.skin, "default-yellow"));
-        table.row();
-        for (int i = 0; i < NUM_ROOMS; i++) {
-            Card card = new Card(TYPE_ROOM, i);
-            CardCheckBox cb = new CardCheckBox(card, player.isCardInHand(card), player.getNotebook().isCardToggled(card));
-            checkBoxes.add(cb);
-            buttonGroup3.add(cb);
-            table.add(cb);
-            if ((i + 1) % 3 == 0) {
-                table.row();
-            }
+        for (Entry<CardType, List<Card>> entry: deck.entrySet()) {
+        	String type = entry.getKey().name().toLowerCase();
+        	
+        	table.add(new Label(String.format("Pick the %s", type), ClueMain.skin, "default-yellow"));
+	        table.row();
+	            
+	        List<Indexed<Card>> cards = StreamUtils.zipWithIndex(entry.getValue().stream()).toList();
+	        	
+	        for (Indexed<Card> card: cards) {
+	        	long i = card.getIndex();
+	        	Card c = card.getValue();
+	        		
+	            CardCheckBox cb = new CardCheckBox(c, player, players);
+	            
+	            checkBoxes.add(cb);
+	            table.add(cb);
+	                
+	            if ((i + 1) % 3 == 0) {
+	            	table.row();
+	            }
+	        }
+	        	
+	        table.row();
+	        table.add(new Label("", ClueMain.skin));
+	        table.row();
         }
-
-        table.row();
-        table.add(new Label("", ClueMain.skin));
-        table.row();
 
         TextButton close = new TextButton("OK", ClueMain.skin);
         close.addListener(new EventListener() {
@@ -129,16 +103,17 @@ public class AccusationDialog extends Window {
 
                     for (CardCheckBox cb : checkBoxes) {
                         if (cb.isChecked() && !cb.isDisabled()) {
-                            suggestion.add(cb.getCard());
+                            suggestions.add(cb.getCard());
                         }
                     }
 
-                    screen.makeAccusation(screen.getYourPlayer(), suggestion);
+                    screen.makeAccusation(screen.getYourPlayer(), suggestions);
 
                 }
                 return false;
             }
         });
+        
         table.add(close).size(120, 25);
 
         focusListener = new FocusListener() {
@@ -226,20 +201,4 @@ public class AccusationDialog extends Window {
             return false;
         }
     };
-
-    private class CardCheckBox extends CheckBox {
-
-        Card card;
-
-        public CardCheckBox(Card card, boolean inHand, boolean toggledInNotebook) {
-            super(card.toString(), ClueMain.skin, inHand ? "card-in-hand" : toggledInNotebook ? "toggled-in-notebook" : "default");
-            this.card = card;
-            setDisabled(inHand);
-        }
-
-        public Card getCard() {
-            return this.card;
-        }
-    }
-
 }

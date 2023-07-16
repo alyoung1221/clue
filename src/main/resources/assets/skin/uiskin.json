@@ -54,7 +54,8 @@ com.badlogic.gdx.scenes.scene2d.ui.Label$LabelStyle: {
         default-blue: { font: default-font, fontColor: blue },
         default-red: { font: default-font, fontColor: red },
         default-green: { font: default-font, fontColor: green },
-        default-yellow: { font: default-font, fontColor: yellow }
+        default-yellow: { font: default-font, fontColor: yellow },
+		default-white: { font: default-font, fontColor: white }
 },
 com.badlogic.gdx.scenes.scene2d.ui.TextField$TextFieldStyle: {
 	default: { selection: selection, background: textfield, font: default-font, fontColor: white, cursor: cursor }
@@ -64,7 +65,7 @@ com.badlogic.gdx.scenes.scene2d.ui.CheckBox$CheckBoxStyle: {
 	selection-blue: { checkboxOn: check-on, checkboxOff: check-off, font: default-font, fontColor: white, checkedFontColor: blue },
 	selection-yellow: { checkboxOn: check-on, checkboxOff: check-off, font: default-font, fontColor: white, checkedFontColor: yellow },
 	card-in-hand: { checkboxOn: check-on, checkboxOff: check-off, font: default-font, fontColor: blue },
-        toggled-in-notebook: { checkboxOn: check-on, checkboxOff: check-off, font: default-font, fontColor: red }
+    toggled-in-notebook: { checkboxOn: check-on, checkboxOff: check-off, font: default-font, fontColor: red }
 },
 com.badlogic.gdx.scenes.scene2d.ui.List$ListStyle: {
 	default: { fontColorUnselected: white, selection: selection, fontColorSelected: white, font: default-font }

@@ -11,11 +11,11 @@ import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.InputListener;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.actions.Actions;
+
 import static com.badlogic.gdx.scenes.scene2d.actions.Actions.fadeOut;
 import static com.badlogic.gdx.scenes.scene2d.actions.Actions.sequence;
+
 import com.badlogic.gdx.scenes.scene2d.actions.SequenceAction;
-import com.badlogic.gdx.scenes.scene2d.ui.ButtonGroup;
-import com.badlogic.gdx.scenes.scene2d.ui.CheckBox;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
@@ -23,24 +23,31 @@ import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.ui.Window;
 import com.badlogic.gdx.scenes.scene2d.utils.FocusListener;
 import com.badlogic.gdx.utils.Align;
-import static gdx.clue.Card.*;
+
+import com.codepoetics.protonpack.Indexed;
+import com.codepoetics.protonpack.StreamUtils;
+
+import static gdx.clue.CardEnum.*;
+
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 
 public class SuggestionDialog extends Window {
-
     public static int WIDTH = 300;
     public static int HEIGHT = 400;
 
     Actor previousKeyboardFocus, previousScrollFocus;
+
     private final FocusListener focusListener;
     private final GameScreen screen;
 
     private final List<CardCheckBox> checkBoxes = new ArrayList<>();
-    private final List<Card> suggestion = new ArrayList<>();
+    private final List<Card> suggestions = new ArrayList<>();
 
-    public SuggestionDialog(final ShowCardsRoutine showCards, final GameScreen screen, final Player player, final Card roomCard) {
-        super("Suggest a Murder Committed in the " + roomCard, ClueMain.skin.get("dialog", Window.WindowStyle.class));
+    public SuggestionDialog(final ShowCardsRoutine showCards, final GameScreen screen, final Player player, final Card card2) {
+        super("Suggest a murder committed in the " + card2, ClueMain.skin.get("dialog", Window.WindowStyle.class));
         this.screen = screen;
 
         setSkin(ClueMain.skin);
@@ -57,70 +64,54 @@ public class SuggestionDialog extends Window {
         add(sp).expand().fill().minWidth(200);
         row();
 
-        ButtonGroup buttonGroup1 = new ButtonGroup();
-        buttonGroup1.setMaxCheckCount(1);
-        buttonGroup1.setMinCheckCount(0);
+        Map<CardType, List<Card>> deck = this.screen.getGame().getDeck();
+        List<Player> players = this.screen.getGame().getPlayers();
 
-        ButtonGroup buttonGroup2 = new ButtonGroup();
-        buttonGroup2.setMaxCheckCount(1);
-        buttonGroup2.setMinCheckCount(0);
+        for (Entry<CardType, List<Card>> entry: deck.entrySet()) {
+        	String type = entry.getKey().name().toLowerCase();
+        	
+        	if (!type.equals("room")) {
+        		table.add(new Label(String.format("Pick the %s", type), ClueMain.skin, "default-yellow"));
+	            table.row();
+	            
+	        	List<Indexed<Card>> cards = StreamUtils.zipWithIndex(entry.getValue().stream()).toList();
+	        	
+	        	for (Indexed<Card> card: cards) {
+	        		long i = card.getIndex();
+	        		Card c = card.getValue();
 
-        table.add(new Label("blue = your cards in hand", ClueMain.skin, "default-blue"));
-        table.row();
-        table.add(new Label("red = already marked off in notebook", ClueMain.skin, "default-red"));
-        table.row();
-
-        table.add(new Label("Pick the Suspect", ClueMain.skin, "default-yellow"));
-        table.row();
-        for (int i = 0; i < NUM_SUSPECTS; i++) {
-            Card card = new Card(TYPE_SUSPECT, i);
-            CardCheckBox cb = new CardCheckBox(card, player.isCardInHand(card), player.getNotebook().isCardToggled(card));
-            checkBoxes.add(cb);
-            buttonGroup1.add(cb);
-            table.add(cb);
-            if ((i + 1) % 3 == 0) {
-                table.row();
-            }
+	                CardCheckBox cb = new CardCheckBox(c, player, players);
+                    // CardCheckBox cb = new CardCheckBox(c, player.isCardInHand(c), player.getNotebook().isCardToggled(c));
+	                checkBoxes.add(cb);
+	                table.add(cb);
+	                
+	                if ((i + 1) % 3 == 0) {
+	                    table.row();
+	                }
+	        	}
+	        	
+	        	table.row();
+	            table.add(new Label("", ClueMain.skin));
+	            table.row();
+        	}
         }
-
-        table.row();
-        table.add(new Label("", ClueMain.skin));
-        table.row();
-
-        table.add(new Label("Pick the Weapon", ClueMain.skin, "default-yellow"));
-        table.row();
-        for (int i = 0; i < NUM_WEAPONS; i++) {
-            Card card = new Card(TYPE_WEAPON, i);
-            CardCheckBox cb = new CardCheckBox(card, player.isCardInHand(card), player.getNotebook().isCardToggled(card));
-            checkBoxes.add(cb);
-            buttonGroup2.add(cb);
-            table.add(cb);
-            if ((i + 1) % 3 == 0) {
-                table.row();
-            }
-        }
-
-        table.row();
-        table.add(new Label("", ClueMain.skin));
-        table.row();
 
         TextButton close = new TextButton("OK", ClueMain.skin);
         close.addListener(new EventListener() {
             @Override
             public boolean handle(Event event) {
                 if (event.toString().equals("touchDown")) {
-
                     hide();
 
-                    suggestion.add(roomCard);
+                    suggestions.add(card2);
 
-                    for (CardCheckBox cb : checkBoxes) {
+                    for (CardCheckBox cb: checkBoxes) {
                         if (cb.isChecked() && !cb.isDisabled()) {
-                            suggestion.add(cb.getCard());
+                            suggestions.add(cb.getCard());
                         }
                     }
 
-                    showCards.setSuggestion(suggestion, screen.getYourPlayer());
+                    showCards.setSuggestion(suggestions, screen.getYourPlayer());
 
                     SequenceAction seq = Actions.action(SequenceAction.class);
                     seq.addAction(Actions.delay(1f));
@@ -164,7 +155,6 @@ public class SuggestionDialog extends Window {
     }
 
     public void show(Stage stage) {
-
         clearActions();
 
         removeCaptureListener(ignoreTouchDown);
@@ -221,20 +211,4 @@ public class SuggestionDialog extends Window {
             return false;
         }
     };
-
-    private class CardCheckBox extends CheckBox {
-
-        Card card;
-
-        public CardCheckBox(Card card, boolean inHand, boolean toggledInNotebook) {
-            super(card.toString(), ClueMain.skin, inHand ? "card-in-hand" : toggledInNotebook ? "toggled-in-notebook" : "default");
-            this.card = card;
-            setDisabled(inHand);
-        }
-
-        public Card getCard() {
-            return this.card;
-        }
-    }
-
 }

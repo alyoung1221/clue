@@ -13,30 +13,33 @@ import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.actions.Actions;
 import static com.badlogic.gdx.scenes.scene2d.actions.Actions.fadeOut;
 import static com.badlogic.gdx.scenes.scene2d.actions.Actions.sequence;
-import com.badlogic.gdx.scenes.scene2d.actions.SequenceAction;
-import com.badlogic.gdx.scenes.scene2d.ui.ButtonGroup;
-import com.badlogic.gdx.scenes.scene2d.ui.CheckBox;
+
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
+import com.badlogic.gdx.scenes.scene2d.ui.SelectBox;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.ui.Window;
 import com.badlogic.gdx.scenes.scene2d.utils.FocusListener;
 import com.badlogic.gdx.utils.Align;
-import static gdx.clue.Card.TYPE_SUSPECT;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
+
+import static gdx.clue.CardEnum.*;
 import gdx.clue.ClueMain.Suspect;
 
 public class PlayerSelectionDialog extends Window {
-
     public static int WIDTH = 300;
     public static int HEIGHT = 400;
 
-    public static final Card CARD_SCARLET = new Card(TYPE_SUSPECT, Suspect.SCARLET.id());
-    public static final Card CARD_MUSTARD = new Card(TYPE_SUSPECT, Suspect.MUSTARD.id());
-    public static final Card CARD_GREEN = new Card(TYPE_SUSPECT, Suspect.GREEN.id());
-    public static final Card CARD_PLUM = new Card(TYPE_SUSPECT, Suspect.PLUM.id());
-    public static final Card CARD_PEACOCK = new Card(TYPE_SUSPECT, Suspect.PEACOCK.id());
-    public static final Card CARD_WHITE = new Card(TYPE_SUSPECT, Suspect.WHITE.id());
+    public static List<Suspect> players = Arrays.asList(Suspect.values());
+    public static List<Card> cards = Arrays.asList(Card.values())
+    	.stream()
+    	.filter((c) -> c.type() == CardType.SUSPECT)
+    	.toList();
 
     Actor previousKeyboardFocus, previousScrollFocus;
     private final FocusListener focusListener;
@@ -51,6 +54,7 @@ public class PlayerSelectionDialog extends Window {
         defaults().pad(10);
 
         Table table = new Table();
+
         table.align(Align.left | Align.top).pad(5);
         table.columnDefaults(0).expandX().left().uniformX();
         table.columnDefaults(1).expandX().left().uniformX();
@@ -58,149 +62,79 @@ public class PlayerSelectionDialog extends Window {
         ScrollPane sp = new ScrollPane(table, ClueMain.skin);
         add(sp).expand().fill().minWidth(200);
         row();
+        
+        SelectBox<Object> select = new SelectBox<Object>(ClueMain.skin);
+        Object[] options = players.stream().map(Suspect::title).toArray();
+        
+        select.setItems(options);
+        
+        table.add(new Label("Your player: ", ClueMain.skin));
+        table.add(select);
+        
+        table.add(new Label("", ClueMain.skin));
+        table.row().pad(20, 0, 20, 0);
 
-        table.add(new Label("Select your player", ClueMain.skin));
-        table.row();
-        final CheckBox cb1 = new CheckBox(Suspect.SCARLET.title(), ClueMain.skin, "selection-blue");
-        final CheckBox cb2 = new CheckBox(Suspect.GREEN.title(), ClueMain.skin, "selection-blue");
-        final CheckBox cb3 = new CheckBox(Suspect.WHITE.title(), ClueMain.skin, "selection-blue");
-        final CheckBox cb4 = new CheckBox(Suspect.PLUM.title(), ClueMain.skin, "selection-blue");
-        final CheckBox cb5 = new CheckBox(Suspect.PEACOCK.title(), ClueMain.skin, "selection-blue");
-        final CheckBox cb6 = new CheckBox(Suspect.MUSTARD.title(), ClueMain.skin, "selection-blue");
-        ButtonGroup buttonGroup = new ButtonGroup(cb1, cb2, cb3, cb4, cb5, cb6);
-        buttonGroup.setMaxCheckCount(1);
-        buttonGroup.setMinCheckCount(0);
-        table.add(cb1);
-        table.add(cb4);
-        table.row();
-        table.add(cb2);
-        table.add(cb5);
-        table.row();
-        table.add(cb3);
-        table.add(cb6);
-        table.row();
+        SelectBox<Object> opponents = new SelectBox<Object>(ClueMain.skin);
+
+        opponents.setItems(options);
+        opponents.getSelection().setMultiple(true);
+
+        table.add(new Label("Opposing players: ", ClueMain.skin));
+        table.add(opponents);
 
         table.add(new Label("", ClueMain.skin));
-        table.row();
-
-        table.add(new Label("Select at least 2 opposing players", ClueMain.skin));
-        table.row();
-        final CheckBox cb11 = new CheckBox(Suspect.SCARLET.title(), ClueMain.skin, "selection-yellow");
-        final CheckBox cb12 = new CheckBox(Suspect.GREEN.title(), ClueMain.skin, "selection-yellow");
-        final CheckBox cb13 = new CheckBox(Suspect.WHITE.title(), ClueMain.skin, "selection-yellow");
-        final CheckBox cb14 = new CheckBox(Suspect.PLUM.title(), ClueMain.skin, "selection-yellow");
-        final CheckBox cb15 = new CheckBox(Suspect.PEACOCK.title(), ClueMain.skin, "selection-yellow");
-        final CheckBox cb16 = new CheckBox(Suspect.MUSTARD.title(), ClueMain.skin, "selection-yellow");
-        table.add(cb11);
-        table.add(cb14);
-        table.row();
-        table.add(cb12);
-        table.add(cb15);
-        table.row();
-        table.add(cb13);
-        table.add(cb16);
-        table.row();
-
-        table.add(new Label("", ClueMain.skin));
-        table.row();
+        table.row().padBottom(10);
 
         TextButton close = new TextButton("OK", ClueMain.skin);
+        
         close.addListener(new EventListener() {
             @Override
             public boolean handle(Event event) {
-                if (event.toString().equals("touchDown")) {
+            	if (event.toString().equals("touchDown")) {
+            		Object player = select.getSelected();		
+	            	Iterable<Object> iterable = () -> opponents.getSelection().iterator();
+	            	
+	            	List<Object> suspects = StreamSupport
+	            		.stream(iterable.spliterator(), false)
+	            		.collect(Collectors.toList());
 
-                    int count = 0;
-                    if (cb11.isChecked()) {
-                        count++;
-                    }
-                    if (cb12.isChecked()) {
-                        count++;
-                    }
-                    if (cb13.isChecked()) {
-                        count++;
-                    }
-                    if (cb14.isChecked()) {
-                        count++;
-                    }
-                    if (cb15.isChecked()) {
-                        count++;
-                    }
-                    if (cb16.isChecked()) {
-                        count++;
-                    }
+	            	boolean duplicate = suspects
+	            		.stream()
+	            		.anyMatch(o -> o.equals(player));
 
-                    if (count < 2) {
-                        return false;
-                    }
+	                if (duplicate || suspects.size() < 2) {
+	                	return false;
+	                }
 
-                    if (cb1.isChecked() && cb11.isChecked()) {
-                        return false;
-                    }
-                    if (cb2.isChecked() && cb12.isChecked()) {
-                        return false;
-                    }
-                    if (cb3.isChecked() && cb13.isChecked()) {
-                        return false;
-                    }
-                    if (cb4.isChecked() && cb14.isChecked()) {
-                        return false;
-                    }
-                    if (cb5.isChecked() && cb15.isChecked()) {
-                        return false;
-                    }
-                    if (cb6.isChecked() && cb16.isChecked()) {
-                        return false;
-                    }
+	                suspects.add(player);
 
-                    if (cb1.isChecked()) {
-                        game.addPlayer(CARD_SCARLET, "Player", Suspect.SCARLET, false);
-                    }
-                    if (cb2.isChecked()) {
-                        game.addPlayer(CARD_GREEN, "Player", Suspect.GREEN, false);
-                    }
-                    if (cb3.isChecked()) {
-                        game.addPlayer(CARD_WHITE, "Player", Suspect.WHITE, false);
-                    }
-                    if (cb4.isChecked()) {
-                        game.addPlayer(CARD_PLUM, "Player", Suspect.PLUM, false);
-                    }
-                    if (cb5.isChecked()) {
-                        game.addPlayer(CARD_PEACOCK, "Player", Suspect.PEACOCK, false);
-                    }
-                    if (cb6.isChecked()) {
-                        game.addPlayer(CARD_MUSTARD, "Player", Suspect.MUSTARD, false);
-                    }
+	                suspects.stream().forEach((p) -> {
+	                	Suspect suspect = players
+	                		.stream()
+	                		.filter(s -> s.title().equals(p.toString()))
+	                		.findFirst()
+	                		.get();
+	                	
+	                	Card card = cards
+	                		.stream()
+	                		.filter(c -> c.id() == suspect.id())
+	                		.findFirst()
+	                		.get();
 
-                    if (cb11.isChecked()) {
-                        game.addPlayer(CARD_SCARLET, "", Suspect.SCARLET, true);
-                    }
-                    if (cb12.isChecked()) {
-                        game.addPlayer(CARD_GREEN, "", Suspect.GREEN, true);
-                    }
-                    if (cb13.isChecked()) {
-                        game.addPlayer(CARD_WHITE, "", Suspect.WHITE, true);
-                    }
-                    if (cb14.isChecked()) {
-                        game.addPlayer(CARD_PLUM, "", Suspect.PLUM, true);
-                    }
-                    if (cb15.isChecked()) {
-                        game.addPlayer(CARD_PEACOCK, "", Suspect.PEACOCK, true);
-                    }
-                    if (cb16.isChecked()) {
-                        game.addPlayer(CARD_MUSTARD, "", Suspect.MUSTARD, true);
-                    }
+	                	game.addPlayer(suspect, card, !p.equals(player));
+	                });
 
-                    hide();
-                    
-                    ClueMain.START_BUTTON.setDisabled(true);
+	                hide();
+	                
+	                ClueMain.START_BUTTON.setDisabled(true);
+	
+	                screen.startGame();
+            	}
 
-                    screen.startGame();
-
-                }
                 return false;
             }
         });
+        
         table.add(close).size(120, 25);
 
         focusListener = new FocusListener() {
@@ -231,7 +165,6 @@ public class PlayerSelectionDialog extends Window {
     }
 
     public void show(Stage stage) {
-
         clearActions();
 
         removeCaptureListener(ignoreTouchDown);

@@ -23,33 +23,41 @@ import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
-import static gdx.clue.Card.*;
+import com.badlogic.gdx.Input.Keys;
+
 import static gdx.clue.ClueMain.TILE_DIM;
 import static gdx.clue.ClueMain.SCREEN_DIM_HEIGHT;
+
+import static gdx.clue.CardEnum.*;
 import gdx.clue.ClueMain.Suspect;
 import gdx.clue.astar.AStar;
 import gdx.clue.astar.Location;
 import gdx.clue.astar.PathFinder;
-import java.util.ArrayList;
+
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class GameScreen implements Screen, InputProcessor {
-
     private final Stage stage;
     private final Batch batch;
     private final Viewport viewport = new ScreenViewport();
     private final InputMultiplexer input;
+
     private final Clue game;
+    private List<Card> undealt;
+
+    private List<Card> rooms;
     private final ClueMap map;
+
     private final PathFinder<Location> pathfinder;
 
     private int index;
     private Player currentTurnPlayer;
     private Player yourPlayer;
 
-    private final Vector3 screenPos = new Vector3();
     private final Vector3 gridPos = new Vector3();
 
     private final RoomIconPlacement playerIconPlacement;
@@ -81,39 +89,44 @@ public class GameScreen implements Screen, InputProcessor {
 
         stage.addActor(logPanel);
 
-        Label label1 = new Label("Kitchen", ClueMain.skin, "default-yellow");
+        game.createDeck();
+        rooms = game.getDeck().get(CardType.ROOM);
+
+        // rooms.stream().map((r) -> new Label(r.title(), ClueMain.skin, "default-white"));
+ 
+        Label label1 = new Label("Kitchen", ClueMain.skin, "default-white");
         label1.setBounds(TILE_DIM * 8 + 50, SCREEN_DIM_HEIGHT - 75, 300, 25);
         stage.addActor(label1);
 
-        Label label2 = new Label("Ballroom", ClueMain.skin, "default-yellow");
+        Label label2 = new Label("Ballroom", ClueMain.skin, "default-white");
         label2.setBounds(TILE_DIM * 8 + 323, SCREEN_DIM_HEIGHT - 128, 300, 25);
         stage.addActor(label2);
 
-        Label label3 = new Label("Conservatory", ClueMain.skin, "default-yellow");
+        Label label3 = new Label("Conservatory", ClueMain.skin, "default-white");
         label3.setBounds(TILE_DIM * 8 + 610, SCREEN_DIM_HEIGHT - 75, 300, 25);
         stage.addActor(label3);
 
-        Label label4 = new Label("Dining Room", ClueMain.skin, "default-yellow");
+        Label label4 = new Label("Dining Room", ClueMain.skin, "default-white");
         label4.setBounds(TILE_DIM * 8 + 50, SCREEN_DIM_HEIGHT - 400, 300, 25);
         stage.addActor(label4);
 
-        Label label5 = new Label("Billiard Room", ClueMain.skin, "default-yellow");
+        Label label5 = new Label("Billiard Room", ClueMain.skin, "default-white");
         label5.setBounds(TILE_DIM * 8 + 621, SCREEN_DIM_HEIGHT - 335, 300, 25);
         stage.addActor(label5);
 
-        Label label6 = new Label("Library", ClueMain.skin, "default-yellow");
+        Label label6 = new Label("Library", ClueMain.skin, "default-white");
         label6.setBounds(TILE_DIM * 8 + 610, SCREEN_DIM_HEIGHT - 529, 300, 25);
         stage.addActor(label6);
 
-        Label label7 = new Label("Study", ClueMain.skin, "default-yellow");
+        Label label7 = new Label("Study", ClueMain.skin, "default-white");
         label7.setBounds(TILE_DIM * 8 + 610, SCREEN_DIM_HEIGHT - 712, 300, 25);
         stage.addActor(label7);
 
-        Label label8 = new Label("Hall", ClueMain.skin, "default-yellow");
+        Label label8 = new Label("Hall", ClueMain.skin, "default-white");
         label8.setBounds(TILE_DIM * 8 + 370, SCREEN_DIM_HEIGHT - 712, 300, 25);
         stage.addActor(label8);
 
-        Label label9 = new Label("Lounge", ClueMain.skin, "default-yellow");
+        Label label9 = new Label("Lounge", ClueMain.skin, "default-white");
         label9.setBounds(TILE_DIM * 8 + 100, SCREEN_DIM_HEIGHT - 712, 300, 25);
         stage.addActor(label9);
 
@@ -135,9 +148,17 @@ public class GameScreen implements Screen, InputProcessor {
         ClueMain.ACTIVE_INDICATOR.addAction(forever(sequence(fadeOut(0.5f), fadeIn(0.5f))));
     }
 
-    public Clue getGame() {
+	public Clue getGame() {
         return this.game;
     }
+
+    public boolean isGameOver() {
+		return gameOver;
+	}
+
+	public void setGameOver(boolean gameOver) {
+		this.gameOver = gameOver;
+	}
 
     public ClueMap getMap() {
         return this.map;
@@ -163,8 +184,15 @@ public class GameScreen implements Screen, InputProcessor {
         return playerIconPlacement;
     }
 
-    public int rollDice() {
+    public List<Card> getUndealt() {
+		return undealt;
+	}
 
+	public void setUndealt(List<Card> undealt) {
+		this.undealt = undealt;
+	}
+
+	public int rollDice() {
         int roll1 = ClueMain.DICE.roll();
         int roll2 = ClueMain.DICE.roll();
         Sounds.play(Sound.DICE);
@@ -173,7 +201,6 @@ public class GameScreen implements Screen, InputProcessor {
         rolledDiceImageRight = ClueMain.DICE_TEXTURES[0][roll2 - 1];
 
         return roll1 + roll2;
-
     }
 
     @Override
@@ -183,20 +210,19 @@ public class GameScreen implements Screen, InputProcessor {
 
     @Override
     public void render(float delta) {
-
         Gdx.gl.glClearColor(0, 0, 0, 0);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
         batch.begin();
-
         batch.draw(ClueMain.ROOMS, TILE_DIM * 8, 0);
 
         for (int i = 0; i < map.getXSize(); i++) {
             for (int j = 0; j < map.getYSize(); j++) {
                 Location t = map.getLocation(i, j);
-                if (t.getBlocked()) {
+
+                if (t.isBlocked()) {
                     //nothing
-                } else if (t.getHighlighted()) {
+                } else if (t.isHighlighted()) {
                     batch.draw(ClueMain.TILE_DARK_GREEN, TILE_DIM * 8 + i * TILE_DIM, SCREEN_DIM_HEIGHT - j * TILE_DIM - TILE_DIM);
                 } else if (t.isRoom()) {
                     batch.draw(ClueMain.TILE_BROWN, TILE_DIM * 8 + i * TILE_DIM, SCREEN_DIM_HEIGHT - j * TILE_DIM - TILE_DIM);
@@ -249,9 +275,89 @@ public class GameScreen implements Screen, InputProcessor {
         return false;
     }
 
+    // TODO: Prevent user from navigating to unreachable squares
     @Override
     public boolean keyUp(int keycode) {
-        return false;
+    	if (currentTurnPlayer == yourPlayer) {
+    		Location curr = yourPlayer.getLocation();
+
+    		final AtomicInteger xPos = new AtomicInteger(curr.getX());
+    		final AtomicInteger yPos = new AtomicInteger(curr.getY());
+    		
+    		// Integer xPos = curr.getX();
+    		// Integer yPos = curr.getY();
+
+	    	if (keycode == Keys.UP) {
+	    		yPos.decrementAndGet();
+	    	}
+	    	else if (keycode == Keys.DOWN) {
+	    		yPos.incrementAndGet();
+	    	}
+	    	else if (keycode == Keys.RIGHT) {
+	    		xPos.incrementAndGet();
+	    	}
+	    	else if (keycode == Keys.LEFT) {
+	    		xPos.decrementAndGet();
+	    	}	    	
+	    	
+    		Location loc = map.getLocation(xPos.get(), yPos.get());
+    		
+    		List<Location> reachable = yourPlayer.getReachable();
+    		
+	    	if (!loc.equals(curr)) {
+                if (loc.isHighlighted()) {
+                    setPlayerLocationFromMapClick(yourPlayer, loc);
+
+                    if (loc.isRoom()) {	    		
+                        map.resetHighlights();
+
+                        int room_id = loc.getRoomId();
+                        
+                        if (room_id == -1) {
+                            return false;
+                        }
+                        
+                        Card card = this.game.getDeck().get(CardType.ROOM)
+                            .stream()
+                            .filter(c -> c.id() == room_id)
+                            .findFirst()
+                            .get(); 
+
+                        SuggestionDialog sg = new SuggestionDialog(showCards, GameScreen.this, yourPlayer, card);
+                        sg.show(stage);
+                    }
+
+                    ClueMain.END_BUTTON.setVisible(true);
+                }
+                else if (loc != null && !loc.isBlocked()) {
+                    System.out.println("Moving to " + loc);
+
+                    /*reachable.stream().forEach((n) -> {
+                    	System.out.println(n.neighbors());
+                    });*/
+                    
+                    setPlayerLocationFromMapClick(yourPlayer, loc);
+
+                    Integer maxX = Collections.max(reachable.stream().map(Location::getX).toList());
+                    Integer maxY = Collections.max(reachable.stream().map(Location::getY).toList());
+
+                    // Boolean available = xPos.get() >= maxX && yPos.get() <= maxY;
+                    
+                    // Location min = reachable.get(0);
+                    // Location max = reachable.get(reachable.size() - 1);
+                    
+                    // Boolean available = reachable.stream().anyMatch(l -> xPos.get() >= l.getX() && yPos.get() <= l.getY());
+                    
+                    // Boolean available = loc.isWithin(maxX, maxY, reachable); 
+
+                    /*if (available) {
+                        setPlayerLocationFromMapClick(yourPlayer, loc);
+                    }*/
+                }
+            }
+        }
+    	
+    	return false;
     }
 
     @Override
@@ -259,9 +365,10 @@ public class GameScreen implements Screen, InputProcessor {
         return false;
     }
 
+    // TODO: Prevent user from clicking on unreachable squares
     @Override
     public boolean touchDown(int screenX, int screenY, int pointer, int button) {
-        screenPos.x = screenX;
+    	/*screenPos.x = screenX;
         screenPos.y = screenY;
 
         gridPos.set(
@@ -270,11 +377,31 @@ public class GameScreen implements Screen, InputProcessor {
                 0);
 
         Location loc = map.getLocation((int) gridPos.x, (int) gridPos.y);
-        if (loc != null && currentTurnPlayer == yourPlayer && loc.getHighlighted() && !loc.equals(yourPlayer.getLocation())) {
-            map.resetHighlights();
-            setPlayerLocationFromMapClick(currentTurnPlayer, loc);
-            ClueMain.END_BUTTON.setVisible(true);
-        }
+
+        if (loc != null && currentTurnPlayer == yourPlayer) {
+            System.out.println(loc + ", blocked = " + loc.isBlocked());
+
+            if (!loc.isBlocked()) {
+                setPlayerLocationFromMapClick(currentTurnPlayer, loc);
+            }
+
+        	if (loc.getHighlighted() && !loc.equals(yourPlayer.getLocation())) {
+	            map.resetHighlights();
+	
+	            if (loc.isRoom()) {
+	                int room_id = currentTurnPlayer.getLocation().getRoomId();
+	                
+	                if (room_id == -1) {
+	                    return false;
+	                }
+	
+	                SuggestionDialog sg = new SuggestionDialog(showCards, GameScreen.this, yourPlayer, new Card(CardType.ROOM, room_id));
+	                sg.show(stage);
+	            }
+	            
+	            ClueMain.END_BUTTON.setVisible(true);
+        	}
+        }*/
 
         return false;
     }
@@ -301,11 +428,14 @@ public class GameScreen implements Screen, InputProcessor {
 
     public Player nextPlayer() {
         this.index++;
+
         if (this.index >= this.game.getPlayers().size()) {
             this.index = 0;
         }
+               
         Player player = this.game.getPlayers().get(this.index);
         setCurrentPlayer(player);
+ 
         return player;
     }
 
@@ -313,9 +443,11 @@ public class GameScreen implements Screen, InputProcessor {
         if (this.currentTurnPlayer != null) {
             this.currentTurnPlayer.getStageActor().clearActions();
         }
+        
         this.currentTurnPlayer = player;
 
         Location location = player.getLocation();
+        
         int x = TILE_DIM * 8 + location.getX() * TILE_DIM;
         int y = SCREEN_DIM_HEIGHT - TILE_DIM * location.getY() - TILE_DIM;
 
@@ -323,14 +455,17 @@ public class GameScreen implements Screen, InputProcessor {
     }
 
     public void setPlayerLocationFromMapClick(Player player, Location location) {
-        playerIconPlacement.removePlayerIcon(player.getSuspect().id());
-        playerIconPlacement.addPlayerIcon(location.getRoomId(), player.getSuspect().id());
-        player.setLocation(location);
-
-        int x = TILE_DIM * 8 + location.getX() * TILE_DIM;
-        int y = SCREEN_DIM_HEIGHT - TILE_DIM * location.getY() - TILE_DIM;
-
-        ClueMain.ACTIVE_INDICATOR.setBounds(x, y, TILE_DIM, TILE_DIM);
+        if (location != null) {
+        	playerIconPlacement.removePlayerIcon(player.getSuspect().id());
+	        playerIconPlacement.addPlayerIcon(location.getRoomId(), player.getSuspect().id());
+	        
+	        player.setLocation(location);
+	
+	        int x = TILE_DIM * 8 + location.getX() * TILE_DIM;
+	        int y = SCREEN_DIM_HEIGHT - TILE_DIM * location.getY() - TILE_DIM;
+	
+	        ClueMain.ACTIVE_INDICATOR.setBounds(x, y, TILE_DIM, TILE_DIM);
+        }
     }
 
     public void addMessage(String text, Color color) {
@@ -338,7 +473,6 @@ public class GameScreen implements Screen, InputProcessor {
     }
 
     private class PlayerDotActor extends Actor {
-
         public Player player;
 
         public PlayerDotActor(Player player) {
@@ -359,18 +493,20 @@ public class GameScreen implements Screen, InputProcessor {
 
             batch.draw(player.getSuspect().circle(), getX(), getY());
         }
-
     }
 
     private class TurnDialog extends Dialog {
-
+    	List<Card> rooms;
         Location location;
         Player player;
 
-        public TurnDialog(Location location, Player player, boolean showDiceButton, boolean showSecretPassageButton, boolean showSuggestionButton) {
+        public TurnDialog(List<Card> rooms, Location location, Player player, boolean showDiceButton, boolean showSecretPassageButton, boolean showSuggestionButton) {
             super("YOUR TURN! YOU MAY CHOOSE:", ClueMain.skin, "dialog");
+            
+            this.rooms = rooms;
             this.location = location;
             this.player = player;
+
             if (showDiceButton) {
                 button("ROLL DICE", ACTION_ROLLED_DICE);
             }
@@ -386,137 +522,132 @@ public class GameScreen implements Screen, InputProcessor {
 
         @Override
         protected void result(Object action) {
-
             if (action.equals(ACTION_ROLLED_DICE)) {
                 map.resetHighlights();
                 int roll = rollDice();
 
-                addMessage("You rolled a " + roll + ".  Select your next location.", player.getSuspect().color());
+                addMessage("You rolled a " + roll + ".  Select your next location.", player.getPlayerColor());
 
-                map.highlightReachablePaths(location, pathfinder, roll);
+                List<Location> reachable = map.highlightReachablePaths(location, pathfinder, roll);
+
+                player.setReachable(reachable);
             }
 
             if (action.equals(ACTION_TOOK_PASSAGE)) {
-
                 int current_room = location.getRoomId();
-                switch (current_room) {
-                    case ROOM_LOUNGE:
-                        setPlayerLocationFromMapClick(this.player, map.getRoomLocation(ROOM_CONSERVATORY));
-                        break;
-                    case ROOM_STUDY:
-                        setPlayerLocationFromMapClick(this.player, map.getRoomLocation(ROOM_KITCHEN));
-                        break;
-                    case ROOM_CONSERVATORY:
-                        setPlayerLocationFromMapClick(this.player, map.getRoomLocation(ROOM_LOUNGE));
-                        break;
-                    case ROOM_KITCHEN:
-                        setPlayerLocationFromMapClick(this.player, map.getRoomLocation(ROOM_STUDY));
-                        break;
-                }
+
+                Card room = rooms.get(current_room);
+ 
+            	room = rooms.get(room.passageId());
+                setPlayerLocationFromMapClick(this.player, map.getRoomLocation(room.id()));
+
+                SuggestionDialog sg = new SuggestionDialog(showCards, GameScreen.this, this.player, room);
+	            sg.show(stage);
 
                 ClueMain.END_BUTTON.setVisible(true);
             }
 
             if (action.equals(ACTION_MADE_SUGGESTION)) {
-
                 int room_id = player.getLocation().getRoomId();
+                Card room = rooms.get(room_id);
+
                 if (room_id == -1) {
                     return;
                 }
 
-                SuggestionDialog sg = new SuggestionDialog(showCards, GameScreen.this, yourPlayer, new Card(TYPE_ROOM, room_id));
+                SuggestionDialog sg = new SuggestionDialog(showCards, GameScreen.this, yourPlayer, room);
                 sg.show(stage);
             }
-
         }
     }
 
     public void startGame() {
+        /*this.game.createDeck();
+        this.rooms = game.getDeck().get(CardType.ROOM);*/
+ 
+        this.undealt = this.game.dealShuffledDeck();
 
-        this.game.createDeck();
-        this.game.dealShuffledDeck();
-
-        for (int i = 0; i < this.game.getPlayers().size(); i++) {
-            Player player = this.game.getPlayers().get(i);
-
-            Notebook book = new Notebook(player);
+        System.out.println("Undealt: " + this.undealt);
+        
+        List<Player> players = this.game.getPlayers();
+        
+        for (int i = 0; i < players.size(); i++) {
+            Player player = players.get(i);
+            Notebook book = new Notebook(game, player);
+            
             player.setNotebook(book);
 
             Suspect sus = player.getSuspect();
+            
             player.setLocation(this.map.getLocation(sus.startX(), sus.startY()));
 
             Actor actor = new PlayerDotActor(player);
             player.setStageActor(actor);
             this.stage.addActor(actor);
 
-            if (!player.isComputerPlayer()) {
+            if (!player.isComputerPlayer() && !gameOver) {
                 this.index = i;
-                setCurrentPlayer(player);
+                
+                // setCurrentPlayer(player);
                 yourPlayer = player;
-                notebookPanel.setNotebook(book, this.stage);
+                
+                notebookPanel.setNotebook(book, players, this.stage);
             }
         }
 
         stage.addActor(ClueMain.ACTIVE_INDICATOR);
 
-        turn(currentTurnPlayer);
+        // turn(currentTurnPlayer);
+        turn(nextPlayer());
     }
 
     public void turn(Player player) {
-
         if (player.isComputerPlayer()) {
-
             Location startingLocation = player.getLocation();
-
-            Card currentRoomCard = startingLocation.isRoom() ? new Card(TYPE_ROOM, startingLocation.getRoomId()) : null;
+            Card currentRoomCard = (startingLocation.isRoom()) ? rooms.get(startingLocation.getRoomId()) : null;
 
             //make a suggestion if the room they are in is not toggled and they did not just enter into a room
             if (startingLocation.isRoom() && !player.getNotebook().isLocationCardInHandOrToggled(currentRoomCard)) {
                 makeSuggestionComputerPlayer(player);
-            } else {
-
-                if (startingLocation.isRoom() && player.getNotebook().isLocationCardInHandOrToggled(currentRoomCard)) {
-                    Sounds.play(Sound.HMM);
-                    //indicates maybe your player should pay attention that this room 
-                    //is in their hand and you may be able to mark it off in your notebook
-                    //but you don't know if the card that was shown was a room card earlier so its not a sure thing
-                    addMessage(player.getSuspect().title() + " is leaving the " + currentRoomCard, player.getSuspect().color());
-                }
-
-                //move them
-                Location newLocation = getNextComputerPlayerLocation(player);
-                
-                this.map.resetHighlights();
             }
-
-            ClueMain.END_BUTTON.setVisible(true);
-
-        } else {
-
+            else {
+            	if (startingLocation.isRoom() && player.getNotebook().isLocationCardInHandOrToggled(currentRoomCard)) {
+	            	Sounds.play(Sound.HMM);
+	                //indicates maybe your player should pay attention that this room 
+	                //is in their hand and you may be able to mark it off in your notebook
+	                //but you don't know if the card that was shown was a room card earlier so its not a sure thing
+	                addMessage(player.getSuspect().title() + " is leaving the " + currentRoomCard, player.getPlayerColor());
+            	}
+            	
+	            // move them
+	            Location newLocation = getNextComputerPlayerLocation(player);
+	                
+	            this.map.resetHighlights();
+	            ClueMain.END_BUTTON.toggle();
+            }
+        } 
+        else {
             Location location = player.getLocation();
             boolean isInRoom = location.getRoomId() != -1;
-            boolean showSecret = (location.getRoomId() == ROOM_LOUNGE || location.getRoomId() == ROOM_STUDY || location.getRoomId() == ROOM_CONSERVATORY || location.getRoomId() == ROOM_KITCHEN);
+            boolean showSecret = (isInRoom) ? rooms.get(location.getRoomId()).hasSecretPassage() : false;
 
-            TurnDialog dialog = new TurnDialog(location, player, true, showSecret, isInRoom);
-            dialog.show(this.stage);
-
+            TurnDialog dialog = new TurnDialog(rooms, location, player, true, showSecret, isInRoom);
+            dialog.show(this.stage); 
         }
-
     }
 
     private Location getNextComputerPlayerLocation(Player player) {
-
         Location new_location = null;
 
         // try move the player to the room which is not in their cards or toggled in their notebook
         Location currentLocation = player.getLocation();
-
-        List<Location> rooms = map.getAllRoomLocations();
+        List<Location> roomLocations = map.getAllRoomLocations();
 
         // remove the rooms which are toggled as marked off in their notebook or in their dealt hand
-        for (Iterator<Location> it = rooms.iterator(); it.hasNext();) {
+        for (Iterator<Location> it = roomLocations.iterator(); it.hasNext();) {
             Location l = (Location) it.next();
-            Card room_card = new Card(TYPE_ROOM, l.getRoomId());
+            Card room_card = rooms.get(l.getRoomId());
+            
             if (player.getNotebook().isLocationCardInHandOrToggled(room_card)) {
                 it.remove();
             }
@@ -528,45 +659,30 @@ public class GameScreen implements Screen, InputProcessor {
 
         // secret passage linkages
         if (currentLocation.isRoom()) {
-            if (currentLocation.getRoomId() == ROOM_KITCHEN) {
-                if (!player.getNotebook().isLocationCardInHandOrToggled(new Card(TYPE_ROOM, ROOM_STUDY))) {
-                    reachableLocations.add(map.getRoomLocation(ROOM_STUDY));
-                }
-            }
-            if (currentLocation.getRoomId() == ROOM_STUDY) {
-                if (!player.getNotebook().isLocationCardInHandOrToggled(new Card(TYPE_ROOM, ROOM_KITCHEN))) {
-                    reachableLocations.add(map.getRoomLocation(ROOM_KITCHEN));
-                }
-            }
-            if (currentLocation.getRoomId() == ROOM_CONSERVATORY) {
-                if (!player.getNotebook().isLocationCardInHandOrToggled(new Card(TYPE_ROOM, ROOM_LOUNGE))) {
-                    reachableLocations.add(map.getRoomLocation(ROOM_LOUNGE));
-                }
-            }
-            if (currentLocation.getRoomId() == ROOM_LOUNGE) {
-                if (!player.getNotebook().isLocationCardInHandOrToggled(new Card(TYPE_ROOM, ROOM_CONSERVATORY))) {
-                    reachableLocations.add(map.getRoomLocation(ROOM_CONSERVATORY));
-                }
-            }
+        	Card room = rooms.get(currentLocation.getRoomId());
+        	
+        	if (room.hasSecretPassage()) {
+        		reachableLocations.add(map.getRoomLocation(room.passageId()));
+        	}
         }
 
-        Collections.shuffle(rooms);
+        Collections.shuffle(roomLocations);
         Collections.shuffle(reachableLocations);
 
         // see if they can move to a highlighted room which is not in their hand or toggled
-        for (Location reachableLocation : reachableLocations) {
-            if (rooms.contains(reachableLocation)) {
+        for (Location reachableLocation: reachableLocations) {
+            if (roomLocations.contains(reachableLocation)) {
                 new_location = reachableLocation;
                 break;
             }
         }
 
-        //move to a closest room which is potential
+        // move to a closest room which is potential
         if (new_location == null) {
             int closest = 100;
             // find a room location which is closest to them which is not in their hand or toggled
-            for (Location reachableLocation : reachableLocations) {
-                for (Location room : rooms) {
+            for (Location reachableLocation: reachableLocations) {
+                for (Location room: roomLocations) {
                     List<Location> path = this.pathfinder.findPath(map.getLocations(), reachableLocation, Collections.singleton(room));
                     if (path.size() <= closest) {
                         closest = path.size();
@@ -576,46 +692,65 @@ public class GameScreen implements Screen, InputProcessor {
             }
         }
 
-        addMessage(String.format("%s rolled a %d", player.getSuspect().title(), roll), player.getSuspect().color());
-
+        addMessage(String.format("%s rolled a %d.", player.getSuspect().title(), roll), player.getPlayerColor());
         setPlayerLocationFromMapClick(player, new_location);
 
         return new_location;
     }
 
-    private void makeSuggestionComputerPlayer(Player player) {
+    public NotebookPanel getNotebookPanel() {
+		return notebookPanel;
+	}
 
+	private void makeSuggestionComputerPlayer(Player player) {
         Location location = player.getLocation();
+        
         if (location.getRoomId() == -1) {
             return;
         }
 
-        Card selected_suspect_card = player.getNotebook().randomlyPickCardOfType(TYPE_SUSPECT);
-        Card selected_weapon_card = player.getNotebook().randomlyPickCardOfType(TYPE_WEAPON);
-        Card selected_room_card = new Card(TYPE_ROOM, location.getRoomId());
+        Card selected_suspect_card = player.getNotebook().randomlyPickCardOfType(CardType.SUSPECT);
+        Card selected_weapon_card = player.getNotebook().randomlyPickCardOfType(CardType.WEAPON);
+        Card selected_room_card = rooms.get(location.getRoomId());
 
-        List<Card> suggestion = new ArrayList<>();
-        suggestion.add(selected_suspect_card);
-        suggestion.add(selected_room_card);
-        suggestion.add(selected_weapon_card);
+        List<Card> suggestion = Arrays.asList(selected_suspect_card, selected_weapon_card, selected_room_card);
 
         this.showCards.setSuggestion(suggestion, player);
         this.showCards.showCards();
-
     }
 
-    public void makeAccusation(Player player, List<Card> accusation) {
-
-        boolean matches = this.game.matchesVictimSet(accusation);
-
-        String text = String.format(ClueMain.accusationFormatter, player.getSuspect().title(), accusation.get(0), accusation.get(1), accusation.get(2), matches);
+    public void makeAccusation(Player player, List<Card> suggestions) {
+        boolean matches = this.game.matchesVictimSet(suggestions);
+        
+        Card weapon = null, suspect = null, room = null;
+        
+        for (Card card: suggestions) {
+            if (card.type() == CardType.ROOM) {
+                room = card;
+            }
+            
+            if (card.type() == CardType.SUSPECT) {
+                suspect = card;
+            }            
+            
+            if (card.type() == CardType.WEAPON) {
+                weapon = card;
+            }
+        }
+        
+        String text = String.format(ClueMain.accusationFormatter, player.getSuspect().title(), suspect, weapon, room, matches);
         addMessage(text, matches ? Color.GREEN : Color.RED);
 
+        setGameOver(matches);
+        
+        ClueMain.END_BUTTON.toggle();
+        ClueMain.ACCUSE_BUTTON.setVisible(false);
+        
         if (matches) {
             Sounds.play(Sound.APPLAUSE);
-        } else {
+        } 
+        else {
             Sounds.play(Sound.NEGATIVE_EFFECT);
         }
-
     }
 }

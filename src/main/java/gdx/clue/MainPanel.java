@@ -10,7 +10,6 @@ import static gdx.clue.ClueMain.SCREEN_DIM_HEIGHT;
 import static gdx.clue.ClueMain.TILE_DIM;
 
 public class MainPanel {
-
     private Table table;
     private ScrollPane pane;
 
@@ -27,17 +26,18 @@ public class MainPanel {
         ClueMain.START_BUTTON = new TextButton("START", ClueMain.skin);
         ClueMain.ACCUSE_BUTTON = new TextButton("ACCUSE", ClueMain.skin);
         ClueMain.END_BUTTON = new TextButton("END TURN", ClueMain.skin, "end-turn");
-        TextButton debug = new TextButton("debug", ClueMain.skin);
+        ClueMain.END_BUTTON.setProgrammaticChangeEvents(true);
 
+        this.table.row();
         this.table.add(ClueMain.START_BUTTON).size(120, 25);
-        this.table.row();
-        this.table.add(ClueMain.ACCUSE_BUTTON).size(120, 25);
-        this.table.row();
         this.table.add(ClueMain.END_BUTTON).size(120, 25);
-
+        
+        TextButton debug = new TextButton("debug", ClueMain.skin);
+        
         this.table.row();
         this.table.add(debug).size(120, 25);
-
+        this.table.add(ClueMain.ACCUSE_BUTTON).size(120, 25);
+        
         ClueMain.END_BUTTON.setVisible(false);
         ClueMain.ACCUSE_BUTTON.setVisible(false);
 
@@ -45,7 +45,6 @@ public class MainPanel {
             @Override
             public void changed(ChangeListener.ChangeEvent event, Actor actor) {
                 Sounds.play(Sound.BUTTON);
-                ClueMain.ACCUSE_BUTTON.setVisible(true);
                 new PlayerSelectionDialog(screen.getGame(), screen).show(stage);
             }
         });
@@ -55,7 +54,13 @@ public class MainPanel {
             public void changed(ChangeListener.ChangeEvent event, Actor actor) {
                 ClueMain.END_BUTTON.setVisible(false);
                 Sounds.play(Sound.BUTTON);
-                screen.turn(screen.nextPlayer());
+
+                if (screen.isGameOver()) {
+                    screen.dispose();
+                }
+                else {
+                    screen.turn(screen.nextPlayer());
+                }
             }
         });
 
@@ -78,5 +83,4 @@ public class MainPanel {
         this.pane.setBounds(0, SCREEN_DIM_HEIGHT - TILE_DIM * 5, TILE_DIM * 8, TILE_DIM * 5);
         stage.addActor(pane);
     }
-
 }

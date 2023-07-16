@@ -1,144 +1,130 @@
 package gdx.clue;
 
-import static gdx.clue.Card.NUM_ROOMS;
-import static gdx.clue.Card.NUM_SUSPECTS;
-import static gdx.clue.Card.NUM_WEAPONS;
-import static gdx.clue.Card.TOTAL;
-import static gdx.clue.Card.TYPE_ROOM;
-import static gdx.clue.Card.TYPE_SUSPECT;
-import static gdx.clue.Card.TYPE_WEAPON;
+import static gdx.clue.CardEnum.*;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.Random;
-
-import gdx.clue.astar.Location;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.stream.Collectors;
 
 public class Notebook {
-
     private Player player;
-    private final LinkedHashMap<Card, Entry> entries = new LinkedHashMap<>();
+    private List<Player> opponents;
+    
+    private Map<CardType, List<Card>> deck;
+    
+    private final LinkedHashMap<Card, CardEntry> entries = new LinkedHashMap<>();
 
-    public Notebook(Player player) {
+    public Notebook(Clue game, Player player) {
         this.setPlayer(player);
+        this.setDeck(game.getDeck());
 
-        ArrayList<Card> deck = new ArrayList<>(TOTAL);
-        for (int i = 0; i < NUM_SUSPECTS; i++) {
-            deck.add(new Card(TYPE_SUSPECT, i));
-        }
-        for (int i = 0; i < NUM_WEAPONS; i++) {
-            deck.add(new Card(TYPE_WEAPON, i));
-        }
-        for (int i = 0; i < NUM_ROOMS; i++) {
-            deck.add(new Card(TYPE_ROOM, i));
-        }
+        List<Card> cards = this.deck
+        	.entrySet()
+        	.stream()
+        	.map(Entry::getValue)
+        	.flatMap(List::stream)
+        	.toList();
 
-        for (Card card : deck) {
-            entries.put(card, new Entry(card));
+        for (Card card: cards) {
+        	CardEntry entry = new CardEntry(card);
+        	
+        	entry.setInHand(player.getHand().contains(card));
+            entries.put(card, entry);
         }
-
-        //set cards in hand
-        for (Card card : player.getCardsInHand()) {
-            Entry entry = entries.get(card);
-            entry.setInHand(true);
-        }
-
     }
 
     public void setToggled(Card card) {
-        Entry entry = entries.get(card);
+        CardEntry entry = entries.get(card);
         entry.setToggled(!entry.getToggled());
     }
 
     public boolean isCardInHand(Card card) {
-        Entry entry = entries.get(card);
+        CardEntry entry = entries.get(card);
+        
         return entry.inHand();
     }
 
     public boolean isCardToggled(Card card) {
-        Entry entry = entries.get(card);
+        CardEntry entry = entries.get(card);
+        
         return entry.getToggled();
     }
 
-    public boolean isLocationCardInHandOrToggled(Location location) {
-        Card roomCard = (location.getRoomId() != -1 ? new Card(Card.TYPE_ROOM, location.getRoomId()) : null);
+    /*public boolean isLocationCardInHandOrToggled(Location location) {
+        Card roomCard = (location.getRoomId() != -1 ? new Card(CardType.ROOM, location.getRoomId()) : null);
+        
         return isLocationCardInHandOrToggled(roomCard);
-    }
+    }*/
 
     public boolean isLocationCardInHandOrToggled(Card card) {
         if (isCardInHand(card) || isCardToggled(card)) {
             return true;
         }
+        
         return false;
     }
 
     public String toString() {
         String text = "";
-        for (Entry entry : entries.values()) {
+        
+        for (CardEntry entry : entries.values()) {
             text += entry.toString();
         }
+        
         return text;
     }
 
-    public Card randomlyPickCardOfType(int type) {
-
-        //select a card of indicated type and check the cards in your hand
-        Card picked_card = null;
-        ArrayList<Card> picks = new ArrayList<>();
-
-        int total = 0;
-        if (type == TYPE_SUSPECT) {
-            total = NUM_SUSPECTS;
-        }
-        if (type == TYPE_ROOM) {
-            total = NUM_ROOMS;
-        }
-        if (type == TYPE_WEAPON) {
-            total = NUM_WEAPONS;
-        }
-
-        for (int i = 0; i < total; i++) {
-            Card card = new Card(type, i);
-            if (!isCardInHand(card) && !isCardToggled(card)) {
-                picks.add(card);
-            }
-        }
-
+    public Card randomlyPickCardOfType(CardType type) {
+        // select a card of indicated type and check the cards in your hand
+        List<Card> picks = this.deck.get(type)
+        	.stream()
+        	.filter(card -> !isCardInHand(card) && !isCardToggled(card))
+        	.collect(Collectors.toList());
+        
         Collections.shuffle(picks);
 
-        picked_card = picks.get(0);
+        Card picked_card = picks.get(0);
 
         return picked_card;
     }
 
-    public boolean canMakeAccusation() {
-
+    // TODO Update method
+    /*public boolean canMakeAccusation() {
         int scount = 0;
+        
         for (int i = 0; i < NUM_SUSPECTS; i++) {
-            Card card = new Card(TYPE_SUSPECT, i);
+            Card card = new Card(CardType.SUSPECT, i);
+            
             if (!isCardInHand(card) && !isCardToggled(card)) {
                 scount++;
             }
         }
+        
         int wcount = 0;
+        
         for (int i = 0; i < NUM_WEAPONS; i++) {
-            Card card = new Card(TYPE_WEAPON, i);
+            Card card = new Card(CardType.WEAPON, i);
+            
             if (!isCardInHand(card) && !isCardToggled(card)) {
                 wcount++;
             }
         }
+        
         int lcount = 0;
+        
         for (int i = 0; i < NUM_ROOMS; i++) {
-            Card card = new Card(TYPE_ROOM, i);
+            Card card = new Card(CardType.ROOM, i);
+            
             if (!isCardInHand(card) && !isCardToggled(card)) {
                 lcount++;
             }
         }
 
         return scount <= 2 && wcount <= 2 && lcount <= 2;
-    }
+    }*/
 
     public Player getPlayer() {
         return player;
@@ -148,14 +134,41 @@ public class Notebook {
         this.player = player;
     }
 
-    class Entry {
+    /**
+	 * @return the opponents
+	 */
+	public List<Player> getOpponents() {
+		return opponents;
+	}
 
+	/**
+	 * @param opponents the opponents to set
+	 */
+	public void setOpponents(List<Player> opponents) {
+		this.opponents = opponents;
+	}
+
+	/**
+	 * @return the deck
+	 */
+	public Map<CardType, List<Card>> getDeck() {
+		return deck;
+	}
+
+	/**
+	 * @param map the deck to set
+	 */
+	public void setDeck(Map<CardType, List<Card>> map) {
+		this.deck = map;
+	}
+
+	class CardEntry {
         Card value;
         boolean inHand = false;
         boolean toggled = false;
 
-        Entry(Card value) {
-            this.value = value;
+        CardEntry(Card card) {
+            this.value = card;
         }
 
         boolean inHand() {
@@ -181,7 +194,5 @@ public class Notebook {
         public String toString() {
             return value + "\t" + (inHand ? "X" : "-") + "\t" + (toggled ? "X" : "-") + "\n";
         }
-
     }
-
 }

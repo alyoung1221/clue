@@ -4,13 +4,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Location implements Node<Location> {
-
     private final int x;
     private final int y;
     private int height;
     private boolean blocked;
     private boolean highlight;
     private boolean isRoom;
+	private boolean isWithin;
     private int roomId = -1;
     private final List<Location> neighbors;
 
@@ -47,7 +47,7 @@ public class Location implements Node<Location> {
         this.blocked = blocked;
     }
 
-    public boolean getBlocked() {
+    public boolean isBlocked() {
         return blocked;
     }
 
@@ -55,7 +55,7 @@ public class Location implements Node<Location> {
         this.highlight = highlight;
     }
 
-    public boolean getHighlighted() {
+    public boolean isHighlighted() {
         return highlight;
     }
 
@@ -67,7 +67,17 @@ public class Location implements Node<Location> {
         return isRoom;
     }
 
-    public void setRoomId(int id) {
+	public void setIsWithinRoll(boolean within) {
+		// TODO Auto-generated method stub
+		this.isWithin = within;
+	}
+	
+    public boolean isWithinRoll() {
+        return isWithin;
+    }
+
+
+	public void setRoomId(int id) {
         this.roomId = id;
     }
 
@@ -104,8 +114,9 @@ public class Location implements Node<Location> {
     @Override
     public Iterable<Location> neighbors() {
         List<Location> realNeighbors = new ArrayList<>();
+        
         if (!blocked) {
-            for (Location loc : neighbors) {
+            for (Location loc: neighbors) {
                 if (!loc.blocked) {
                     realNeighbors.add(loc);
                 }
@@ -123,9 +134,54 @@ public class Location implements Node<Location> {
         neighbors.remove(l);
     }
 
+    /*public boolean isWithin(PathFinder pathFinder, Integer maxX, Integer maxY, List<Location> locations) {
+    	if (locations.contains(this)) {
+    		return true;
+    	}
+
+    	Boolean available = locations.stream().allMatch(l -> this.x > l.getX() && this.y <= l.getY());
+
+    	List<Integer> x = locations.stream().map(Location::getX).toList();
+		List<Integer> y = locations.stream().map(Location::getY).toList();
+		
+    	Integer minX = Collections.min(x);
+    	Integer minY = Collections.min(y);
+
+    	maxX = Collections.max(x);
+    	maxY = Collections.max(y);
+    	
+        return available;      
+    }
+    
+    public boolean isWithin(Integer maxX, Integer maxY, List<Location> locations) {
+    	if (locations.contains(this)) {
+    		return true;
+    	}
+    	
+    	Boolean available = locations.stream().anyMatch(l -> this.x > l.getX() && this.y <= l.getY());
+
+    	List<Integer> x = locations.stream().map(Location::getX).toList();
+		List<Integer> y = locations.stream().map(Location::getY).toList();
+		
+    	Integer minX = Collections.min(x);
+    	Integer minY = Collections.min(y);
+
+    	maxX = Collections.max(x);
+    	maxY = Collections.max(y);
+    	
+        return available;      
+    }
+    
+    public boolean isWithin(Location min, Location max) {
+    	if (this.equals(min) || this.equals(max)) {
+    		return true;
+    	}
+    	
+        return (min.x <= this.x && this.x >= max.x) && (min.y >= this.y && this.y <= max.y);      
+    }*/
+    
     @Override
     public String toString() {
         return "Location [" + x + "][" + y + "]";
     }
-
 }

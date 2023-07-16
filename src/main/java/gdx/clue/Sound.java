@@ -1,9 +1,6 @@
 package gdx.clue;
 
-
-
 public enum Sound {
-    
     BUTTON("button.click.wav", false, 0.3f),
     APPLAUSE("applause6.wav", false, 0.3f),
     CREAK("creaking-door-2.wav", false, 0.3f),
@@ -34,5 +31,4 @@ public enum Sound {
     public float getVolume() {
         return this.volume;
     }
-
 }

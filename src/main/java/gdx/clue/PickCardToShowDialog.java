@@ -11,10 +11,10 @@ import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.InputListener;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.actions.Actions;
+
 import static com.badlogic.gdx.scenes.scene2d.actions.Actions.fadeOut;
 import static com.badlogic.gdx.scenes.scene2d.actions.Actions.sequence;
-import com.badlogic.gdx.scenes.scene2d.ui.ButtonGroup;
-import com.badlogic.gdx.scenes.scene2d.ui.CheckBox;
+
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
@@ -22,6 +22,9 @@ import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.ui.Window;
 import com.badlogic.gdx.scenes.scene2d.utils.FocusListener;
 import com.badlogic.gdx.utils.Align;
+
+import static gdx.clue.CardEnum.*;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -36,10 +39,7 @@ public class PickCardToShowDialog extends Window {
 
     private final List<CardCheckBox> checkBoxes = new ArrayList<>();
 
-    public PickCardToShowDialog(
-            final GameScreen screen, final ShowCardsRoutine showCards, Player showingPlayer,
-            final Player suggestingPlayer, List<Card> suggestion, String suggestionText) {
-
+    public PickCardToShowDialog(final GameScreen screen, final ShowCardsRoutine showCards, Player showingPlayer, final Player suggestingPlayer, List<Card> suggestions, String suggestionText) {
         super("Pick which card you will show for the suggestion", ClueMain.skin.get("dialog", Window.WindowStyle.class));
         this.screen = screen;
 
@@ -61,23 +61,19 @@ public class PickCardToShowDialog extends Window {
         table.add(new Label(suggestionText, ClueMain.skin));
         table.row();
 
-        ButtonGroup buttonGroup1 = new ButtonGroup();
-        buttonGroup1.setMaxCheckCount(1);
-        buttonGroup1.setMinCheckCount(0);
-
-        List<Card> cards_in_hand = showingPlayer.getCardsInHand();
+        List<Card> cards_in_hand = showingPlayer.getHand();
         List<Card> cards_in_hand_matching_one_of_three_suggested_cards = new ArrayList<>();
 
-        for (Card card : suggestion) {
+        for (Card card : suggestions) {
             if (cards_in_hand.contains(card)) {
                 cards_in_hand_matching_one_of_three_suggested_cards.add(card);
             }
         }
 
-        for (Card card : cards_in_hand_matching_one_of_three_suggested_cards) {
+        for (Card card: cards_in_hand_matching_one_of_three_suggested_cards) {
             CardCheckBox cb = new CardCheckBox(card, false, false);
+            
             checkBoxes.add(cb);
-            buttonGroup1.add(cb);
             table.add(cb);
         }
 
@@ -98,9 +94,11 @@ public class PickCardToShowDialog extends Window {
                             ClueMain.END_BUTTON.setVisible(true);
                             showCards.reset();
                             String text = showingPlayer.getSuspect().title() + " is showing the \"" + cb.getCard() + "\" card to " + suggestingPlayer.getSuspect().title();
-                            screen.addMessage(text, showingPlayer.getSuspect().color());
+                            screen.addMessage(text, showingPlayer.getPlayerColor());
                         }
                     }
+
+                    ClueMain.END_BUTTON.toggle();
                 }
                 return false;
             }
@@ -135,7 +133,6 @@ public class PickCardToShowDialog extends Window {
     }
 
     public void show(Stage stage) {
-
         clearActions();
 
         removeCaptureListener(ignoreTouchDown);
@@ -192,20 +189,4 @@ public class PickCardToShowDialog extends Window {
             return false;
         }
     };
-
-    private class CardCheckBox extends CheckBox {
-
-        Card card;
-
-        public CardCheckBox(Card card, boolean inHand, boolean toggledInNotebook) {
-            super(card.toString(), ClueMain.skin, inHand ? "card-in-hand" : toggledInNotebook ? "toggled-in-notebook" : "default");
-            this.card = card;
-            setDisabled(inHand);
-        }
-
-        public Card getCard() {
-            return this.card;
-        }
-    }
-
 }

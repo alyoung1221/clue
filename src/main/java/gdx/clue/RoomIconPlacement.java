@@ -1,8 +1,9 @@
 package gdx.clue;
 
 import com.badlogic.gdx.graphics.g2d.Batch;
-import static gdx.clue.Card.*;
 import static gdx.clue.ClueMain.SCREEN_DIM_HEIGHT;
+
+import gdx.clue.CardEnum.Card;
 import gdx.clue.ClueMain.Suspect;
 import static gdx.clue.ClueMain.TILE_DIM;
 
@@ -13,7 +14,7 @@ public class RoomIconPlacement {
     Room[] rooms = new Room[9];
 
     public RoomIconPlacement() {
-        for (int i = 0; i < NUM_ROOMS; i++) {
+        for (int i = 0; i < CardEnum.NUM_ROOMS; i++) {
             rooms[i] = new Room(i);
         }
     }
@@ -22,7 +23,7 @@ public class RoomIconPlacement {
         if (roomId < 0) {
             return;
         }
-        for (int i = 0; i < NUM_SUSPECTS; i++) {
+        for (int i = 0; i < CardEnum.NUM_SUSPECTS; i++) {
             if (rooms[roomId].slot[i] == -1) {
                 rooms[roomId].slot[i] = playerId;
                 break;
@@ -32,8 +33,8 @@ public class RoomIconPlacement {
     }
 
     public void removePlayerIcon(int playerId) {
-        for (int j = 0; j < NUM_ROOMS; j++) {
-            for (int i = 0; i < NUM_SUSPECTS; i++) {
+        for (int j = 0; j < CardEnum.NUM_ROOMS; j++) {
+            for (int i = 0; i < CardEnum.NUM_SUSPECTS; i++) {
                 if (rooms[j].slot[i] == playerId) {
                     rooms[j].slot[i] = -1;
                 }
@@ -43,8 +44,8 @@ public class RoomIconPlacement {
 
     public void drawIcons(Batch batch) {
 
-        for (int i = 0; i < NUM_ROOMS; i++) {
-            for (int j = 0; j < NUM_SUSPECTS; j++) {
+        for (int i = 0; i < CardEnum.NUM_ROOMS; i++) {
+            for (int j = 0; j < CardEnum.NUM_SUSPECTS; j++) {
                 if (rooms[i].slot[j] != -1) {
                     
                     int x = rooms[i].icon_locations[j][0];
@@ -75,39 +76,39 @@ public class RoomIconPlacement {
         Room(int id) {
             this.id = id;
 
-            if (id == ROOM_KITCHEN) {
+            if (id == Card.KITCHEN.id()) {
                 start_x = 5;
                 start_y = 100;
             }
-            if (id == ROOM_BALLROOM) {
+            if (id == Card.BALLROOM.id()) {
                 start_x = 261;
                 start_y = 110;
             }
-            if (id == ROOM_CONSERVATORY) {
+            if (id == Card.CONSERVATORY.id()) {
                 start_x = 550;
                 start_y = 60;
             }
-            if (id == ROOM_BILLIARD) {
+            if (id == Card.BILLIARD.id()) {
                 start_x = 600;
                 start_y = 293;
             }
-            if (id == ROOM_LIBRARY) {
+            if (id == Card.LIBRARY.id()) {
                 start_x = 590;
                 start_y = 510;
             }
-            if (id == ROOM_STUDY) {
+            if (id == Card.STUDY.id()) {
                 start_x = 580;
                 start_y = 700;
             }
-            if (id == ROOM_HALL) {
+            if (id == Card.HALL.id()) {
                 start_x = 291;
                 start_y = 695;
             }
-            if (id == ROOM_LOUNGE) {
+            if (id == Card.LOUNGE.id()) {
                 start_x = 5;
                 start_y = 660;
             }
-            if (id == ROOM_DINING) {
+            if (id == Card.DINING.id()) {
                 start_x = 5;
                 start_y = 360;
             }
